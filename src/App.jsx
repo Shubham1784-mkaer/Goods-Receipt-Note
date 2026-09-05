@@ -123,10 +123,36 @@ export default function GRNTracker() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  const todaysEntries = useMemo(
-    () => entries.filter((e) => e.date === date).sort((a, b) => a.vendor.localeCompare(b.vendor)),
-    [entries, date]
-  );
+  const groupedTodayEntries = useMemo(() => {
+  const grouped = {};
+
+  todaysEntries.forEach((e) => {
+    if (!grouped[e.item]) {
+      grouped[e.item] = [];
+    }
+
+    // Receiving = positive
+    if (e.receiving > 0) {
+      grouped[e.item].push({
+        value: e.receiving,
+        type: "receiving",
+      });
+    }
+
+    // RTV = negative
+    if (e.rtv > 0) {
+      grouped[e.item].push({
+        value: -e.rtv,
+        type: "rtv",
+      });
+    }
+  });
+
+  return Object.entries(grouped).map(([item, transactions]) => ({
+    item,
+    transactions,
+  }));
+}, [todaysEntries]);
 
   // ---- summary aggregation ----
   const summaryData = useMemo(() => {
@@ -396,20 +422,38 @@ export default function GRNTracker() {
                 No entries yet for this date.
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100 overflow-hidden">
-                {todaysEntries.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+               <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100 overflow-hidden">
+                {groupedTodayEntries.map((group) => (
+                  <div
+                    key={group.item}
+                    className="flex items-center justify-between px-4 py-3 text-sm"
+                  >
                     <div>
-                      <span className="font-medium text-stone-700">{e.item}</span>
-                      <span className="text-stone-400"> · {e.vendor}</span>
-                      {e.supplier && <span className="text-stone-400"> · {e.supplier}</span>}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-emerald-700">+{e.receiving}</span>
-                      <span className="text-red-700">-{e.rtv}</span>
-                      <button onClick={() => removeEntry(e.id)} className="text-stone-300 hover:text-red-500">
-                        <Trash2 size={15} />
-                      </button>
+                      <span className="font-medium text-stone-700">
+                        {group.item}
+                      </span>
+              
+                      <span className="text-stone-400 mx-2">
+                        -:
+                      </span>
+              
+                      {group.transactions.map((t, index) => (
+                        <span key={index}>
+                          <span
+                            className={
+                              t.type === "receiving"
+                                ? "text-emerald-700"
+                                : "text-red-700"
+                            }
+                          >
+                            {t.value}
+                          </span>
+              
+                          {index < group.transactions.length - 1 && (
+                            <span className="mx-2"> </span>
+                          )}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 ))}
